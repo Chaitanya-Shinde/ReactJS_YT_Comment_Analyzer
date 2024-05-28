@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-
+import Sentiment from 'sentiment'
 import {fetchAllCommentsOfVideo, fetchVideoDetails} from '../../view_models/FetchData.js'
 
 import MyButton from '../../components/MyButton.js';
@@ -15,6 +15,9 @@ function HomePage() {
   const [numOfComments, setNumOfComments] = useState(0)
   const [videoLink, setVideoLink] = useState("")
   const [keywords, setKeywords] = useState('')
+  const [sentimentResults, setSentimentResults] = useState([]);
+  const [averageSentimentScore, setAverageSentimentScore] = useState(0); // New state for average sentiment score
+  const [sentimentLabel, setSentimentLabel] = useState('');
   const [bools , setBools] = useState({
     showComments: false,
     showTools: false,
@@ -37,6 +40,9 @@ function HomePage() {
       const comments = await fetchAllCommentsOfVideo(videoId);
       setItemsList(comments)
       setNumOfComments(comments.length)
+
+      // Perform sentiment analysis on all comments
+      analyzeSentiments(comments);
       return
     }
   }
@@ -60,6 +66,30 @@ function HomePage() {
     console.log(arr[randomIndex])
     return arr[randomIndex];
   }
+
+  const analyzeSentiments = (comments) => {
+    const sentiment = new Sentiment();
+    const results = comments.map(comment => {
+      const analysis = sentiment.analyze(comment.textOriginal);
+      return { ...comment, sentimentScore: analysis.score };
+    });
+    setSentimentResults(results);
+
+    // Calculate the average sentiment score
+    const totalSentimentScore = results.reduce((acc, comment) => acc + comment.sentimentScore, 0);
+    const averageScore = totalSentimentScore / results.length;
+    setAverageSentimentScore(averageScore.toFixed(2));    
+    let averageSentimentLabel = '';
+    if (averageScore > 1) {
+      averageSentimentLabel = 'Good';
+    } else if (averageScore < -1) {
+      averageSentimentLabel = 'Bad';
+    } else {
+      averageSentimentLabel = 'Okay';
+    }
+    setSentimentLabel(averageSentimentLabel);
+    console.log(averageScore);
+  };
 
   function getRandomCommentByKeywords(comments, keywords) {
     const keywordsArray = keywords.split(',').map(keyword => keyword.trim().toLowerCase());
@@ -183,7 +213,11 @@ function HomePage() {
                         <h1 className=' text-white'>detect spam comments</h1>
                       }
                       {bools.showFeedbackAnalysis &&
-                        <h1 className=' text-white'>feed back analysis</h1>
+                        <div className=' w-full h-auto bg-semi_dark shadow-black shadow-lg rounded-lg px-4 py-2'>
+                          <h1 className=' text-xl font-semibold text-primary '>Feed back analysis:</h1>
+                          <h2 className=' text-md font-normal text-primary mt-1'>Total comments analyzed: {itemsList.length}</h2>
+                          <h2 className=' text-md font-normal text-primary mt-1 flex'>Sentiment analysis: <h2 className={`ml-2 font-semibold ${sentimentLabel === 'Good' ? 'text-green-400': 'text-primary' } ${sentimentLabel === 'Okay' ? 'text-yellow-400': 'text-primary' } ${sentimentLabel === 'Bad' ? 'text-red-400': 'text-primary' }`}>{sentimentLabel}</h2></h2>
+                        </div>
                       }
                       
                     </div>
